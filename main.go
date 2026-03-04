@@ -119,7 +119,7 @@ func (s *Saber) Play(st SaberSound) {
 	speaker.Play(buffs[idx].Streamer(0, buffs[idx].Len()))
 }
 
-func (s *Saber) PlaySync(st SaberSound) {
+func (s *Saber) PlaySync(ctx context.Context, st SaberSound) {
 	buffs := s.buffers[st]
 	if len(buffs) == 0 {
 		return
@@ -129,7 +129,10 @@ func (s *Saber) PlaySync(st SaberSound) {
 	speaker.Play(beep.Seq(buffs[idx].Streamer(0, buffs[idx].Len()), beep.Callback(func() {
 		done <- true
 	})))
-	<-done
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
 }
 
 func (s *Saber) RunIdleLoop(ctx context.Context) {
@@ -264,7 +267,10 @@ func main() {
 		select {
 		case <-ctx.Done():
 			fmt.Println("\nTurning off...")
-			saber.PlaySync(SoundOff)
+			// Use a background context with timeout for the off sound to ensure it doesn't block exit too long
+			offCtx, offCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			saber.PlaySync(offCtx, SoundOff)
+			offCancel()
 			return
 		case err := <-sensorErr:
 			_, _ = fmt.Fprintf(os.Stderr, "Sensor error: %v\n", err)
