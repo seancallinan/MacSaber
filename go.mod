@@ -1,4 +1,4 @@
-module MacSaber
+module github.com/seancallinan/MacSaber
 
 go 1.26
 
